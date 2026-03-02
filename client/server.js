@@ -14,6 +14,13 @@ const renameInput = document.querySelector(".renameInput");
 let currentRoom = "";
 let currentName = "";
 
+socket.on("room-player-count", ({ count, max }) => {
+  const el = document.getElementById("room-count");
+  if (el) {
+    el.textContent = `Players: ${count}/${max}`;
+  }
+});
+
 socket.on("onlinePlayers", (count) => {
   document.getElementById("online-count").textContent =
     `Online(Global): ${count}`;
@@ -47,8 +54,13 @@ function showRoom(code, mode) {
 createRoomButton.addEventListener("click", () => {
   const code = Math.floor(Math.random() * 10000).toString();
   currentRoom = code + "";
-  socket.emit("join-room", code, (message) => {
-    displayMessage(message);
+  socket.emit("join-room", code, (response) => {
+    if (!response.success) {
+      displayMessage(response.message, "System");
+      return;
+    }
+
+    displayMessage(response.message, "System");
   });
   showRoom("Your room code: " + code, "create");
 });
@@ -60,8 +72,92 @@ joinRoomButton.addEventListener("click", () => {
 joinRoomSend.addEventListener("click", () => {
   const room = joinRoomCode.value.trim();
   currentRoom = room;
-  socket.emit("join-room", room, (message) => {
-    displayMessage(message);
+  socket.emit("join-room", room, (response) => {
+    if (!response.success) {
+      displayMessage(response.message, "System");
+      return;
+    }
+
+    displayMessage(response.message, "System");
+  });
+});
+
+startGameButton.addEventListener("click", () => {
+  socket.emit("start-game");
+});
+
+socket.on("game-countdown", (time) => {
+  document.getElementById("timer-display").textContent =
+    `Game starting in ${time}`;
+});
+
+socket.on("your-role", (role) => {
+  // hide lobby stuff
+  createRoomButton.style.display = "none";
+  joinRoomButton.style.display = "none";
+  changeName.style.display = "none";
+  backButton.style.display = "none";
+  startGameButton.style.display = "none";
+  roomCodeDiv.style.display = "none";
+  joinRoomCode.style.display = "none";
+  joinRoomSend.style.display = "none";
+
+  document.getElementById("role-display").textContent =
+    `Your Role: ${role.toUpperCase()}`;
+});
+
+socket.on("day-timer", (time) => {
+  document.getElementById("game-overlay").style.display = "none";
+  document.getElementById("timer-display").textContent =
+    `Day: ${time}s remaining`;
+});
+
+socket.on("night-start", (time) => {
+  const overlay = document.getElementById("game-overlay");
+
+  overlay.style.display = "block";
+  overlay.style.position = "fixed";
+  overlay.style.top = 0;
+  overlay.style.left = 0;
+  overlay.style.width = "100%";
+  overlay.style.height = "100%";
+  overlay.style.background = "rgba(0,0,0,0.6)";
+  overlay.style.pointerEvents = "none";
+
+  document.getElementById("timer-display").textContent =
+    `Night: ${time}s`;
+});
+
+socket.on("night-timer", (time) => {
+  document.getElementById("timer-display").textContent =
+    `Night: ${time}s`;
+});
+
+socket.on("player-list", (players) => {
+  const list = document.getElementById("player-list");
+  list.innerHTML = "";
+
+  players.forEach(p => {
+    if (!p.alive) return;
+
+    const btn = document.createElement("button");
+    btn.textContent = p.name;
+    btn.dataset.id = p.id;
+    btn.onclick = () => {
+      socket.emit("night-action", p.id);
+    };
+
+    list.appendChild(btn);
+  });
+});
+
+socket.on("player-died", (id) => {
+  const list = document.getElementById("player-list");
+  [...list.children].forEach(btn => {
+    if (btn.dataset.id === id) {
+      btn.style.opacity = 0.4;
+      btn.disabled = true;
+    }
   });
 });
 
@@ -77,7 +173,7 @@ backButton.addEventListener("click", () => {
   renameButton.style.display = "none";
   renameInput.style.display = "none";
   currentRoom = "";
-//   displayMessage(`${currentName} Left the room`);
+    displayMessage(`${currentName} Left the room`);
 });
 
 changeName.addEventListener("click", () => {

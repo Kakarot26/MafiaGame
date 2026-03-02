@@ -11,26 +11,30 @@
       <div class="game-area">
         <h1>Main Game</h1>
         <div class="main-page">
-            <div class="players"></div>
-            <button class="createRoom">Create Room</button>
-            <button class="joinRoom">Join Room</button>
-            <button class="changeName">Change Name</button>
-            <button class="renameButton">Rename</button>
-            <input type="text" class="renameInput">
-            <div class="roomCode"></div>
-            <input type="text" class="joinRoomCode">
-            <button class="startGame">Start</button>
-            <button class="send">Join</button>
-            <button class="backButton">Back</button>
+          <div id="game-overlay" style="display: none"></div>
+          <div id="role-display"></div>
+          <div id="timer-display"></div>
+          <div id="player-list"></div>
+          <div class="players" id="room-count">Players: 0/15</div>
+          <button class="createRoom">Create Room</button>
+          <button class="joinRoom">Join Room</button>
+          <button class="changeName">Change Name</button>
+          <button class="renameButton">Rename</button>
+          <input type="text" class="renameInput" />
+          <div class="roomCode"></div>
+          <input type="text" class="joinRoomCode" />
+          <button class="startGame">Start</button>
+          <button class="send">Join</button>
+          <button class="backButton">Back</button>
         </div>
       </div>
       <div class="chat-area">
         <div class="topBar">
-            <h1>Chat</h1>
-            <div class="online">
-                <div id="online-count">Online(Global): 0</div>
-                <div class="online-count-room">Online(Room): 0</div>
-            </div>
+          <h1>Chat</h1>
+          <div class="online">
+            <div id="online-count">Online(Global): 0</div>
+            <!-- <div class="online-count-room">Online(Room): 0</div> -->
+          </div>
         </div>
         <div class="messages"></div>
         <input type="text" placeholder="Press / to chat" />
