@@ -183,18 +183,78 @@ function checkWin(room) {
 }
 
 function resolveNight(room) {
-    const game = rooms.get(room);
+  const game = rooms.get(room);
 
-    if (game.killerTarget && game.killerTarget !== game.medicTarget) {
-      game.players.get(game.killerTarget).alive = false;
-      io.to(room).emit("player-died", game.killerTarget);
-    }
-
-    game.killerTarget = null;
-    game.medicTarget = null;
-
-    startVoting(room);
+  if (game.killerTarget && game.killerTarget !== game.medicTarget) {
+    game.players.get(game.killerTarget).alive = false;
+    io.to(room).emit("player-died", game.killerTarget);
   }
+
+  game.killerTarget = null;
+  game.medicTarget = null;
+
+  startVoting(room);
+}
+
+function startVoting(room) {
+  const game = rooms.get(room);
+  if (!game) return;
+
+  game.phase = "voting";
+  game.votes.clear();
+
+  io.to(room).emit(
+    "player-list",
+    Array.from(game.players.entries()).map(([id, p]) => ({
+      id,
+      name: p.name,
+      alive: p.alive,
+    })),
+  );
+
+  let timeLeft = 60;
+  io.to(room).emit("vote-start", timeLeft);
+
+  const interval = setInterval(() => {
+    timeLeft--;
+    io.to(room).emit("vote-timer", timeLeft);
+
+    if (timeLeft <= 0) {
+      clearInterval(interval);
+      resolveVoting(room);
+    }
+  }, 1000);
+}
+
+function resolveVoting(room) {
+  const game = rooms.get(room);
+  if (!game) return;
+
+  let maxVotes = 0;
+  let votedPlayer = null;
+
+  for (const [id, votes] of game.votes.entries()) {
+    if (votes > maxVotes) {
+      maxVotes = votes;
+      votedPlayer = id;
+    }
+  }
+
+  if (votedPlayer) {
+    game.players.get(votedPlayer).alive = false;
+    io.to(room).emit("player-died", votedPlayer);
+  } else {
+    io.to(room).emit("receive-message", {
+      text: "Nobody was voted out.",
+      sender: "System",
+      color: "#ffffff"
+    });
+  }
+
+  if (checkWin(room)) return;
+
+  startDayTimer(room);
+}
 
 io.on("connection", (socket) => {
   // console.log(socket.id);
@@ -256,14 +316,16 @@ io.on("connection", (socket) => {
     );
   });
 
-  
   socket.on("vote", (targetId) => {
-    const game = rooms.get(socket.currentRoom);
+  const room = socket.currentRoom;
+  const game = rooms.get(room);
+  if (!game) return;
 
-    if (!game.players.get(socket.id).alive) return;
+  if (game.phase !== "voting") return;
+  if (!game.players.get(socket.id)?.alive) return;
 
-    game.votes.set(targetId, (game.votes.get(targetId) || 0) + 1);
-  });
+  game.votes.set(targetId, (game.votes.get(targetId) || 0) + 1);
+});
   socket.on("disconnecting", () => {
     onlinePlayers--;
     io.emit("onlinePlayers", onlinePlayers);

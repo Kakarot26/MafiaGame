@@ -1,4 +1,4 @@
-const socket = io("http://localhost:3000");
+const socket = io("https://mafiarevamp.onrender.com");
 
 const createRoomButton = document.querySelector(".createRoom");
 const joinRoomButton = document.querySelector(".joinRoom");
@@ -13,6 +13,14 @@ const renameInput = document.querySelector(".renameInput");
 
 let currentRoom = "";
 let currentName = "";
+
+socket.on("vote-start", (time) => {
+  document.getElementById("timer-display").textContent = `Voting: ${time}s`;
+});
+
+socket.on("vote-timer", (time) => {
+  document.getElementById("timer-display").textContent = `Voting: ${time}s`;
+});
 
 socket.on("room-player-count", ({ count, max }) => {
   const el = document.getElementById("room-count");
@@ -124,27 +132,32 @@ socket.on("night-start", (time) => {
   overlay.style.background = "rgba(0,0,0,0.6)";
   overlay.style.pointerEvents = "none";
 
-  document.getElementById("timer-display").textContent =
-    `Night: ${time}s`;
+  document.getElementById("timer-display").textContent = `Night: ${time}s`;
 });
 
 socket.on("night-timer", (time) => {
-  document.getElementById("timer-display").textContent =
-    `Night: ${time}s`;
+  document.getElementById("timer-display").textContent = `Night: ${time}s`;
 });
 
 socket.on("player-list", (players) => {
   const list = document.getElementById("player-list");
   list.innerHTML = "";
 
-  players.forEach(p => {
+  players.forEach((p) => {
     if (!p.alive) return;
 
     const btn = document.createElement("button");
     btn.textContent = p.name;
     btn.dataset.id = p.id;
+    let phase = "day";
+
+    socket.on("night-start", () => (phase = "night"));
+    socket.on("vote-start", () => (phase = "voting"));
+    socket.on("day-timer", () => (phase = "day"));
+
     btn.onclick = () => {
-      socket.emit("night-action", p.id);
+      if (phase === "night") socket.emit("night-action", p.id);
+      if (phase === "voting") socket.emit("vote", p.id);
     };
 
     list.appendChild(btn);
@@ -153,7 +166,7 @@ socket.on("player-list", (players) => {
 
 socket.on("player-died", (id) => {
   const list = document.getElementById("player-list");
-  [...list.children].forEach(btn => {
+  [...list.children].forEach((btn) => {
     if (btn.dataset.id === id) {
       btn.style.opacity = 0.4;
       btn.disabled = true;
@@ -173,7 +186,7 @@ backButton.addEventListener("click", () => {
   renameButton.style.display = "none";
   renameInput.style.display = "none";
   currentRoom = "";
-    displayMessage(`${currentName} Left the room`);
+  displayMessage(`${currentName} Left the room`);
 });
 
 changeName.addEventListener("click", () => {
